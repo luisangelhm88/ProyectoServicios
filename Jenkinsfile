@@ -1,5 +1,8 @@
 pipeline {
     agent any
+    environment {
+        LOCAL_SERVER = '192.168.96.1'
+    }
     tools {
         maven 'M3_8_2'
     }
@@ -26,7 +29,7 @@ pipeline {
         stage('Quality Gate'){
             steps {
                 timeout(time: 2, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                    waitForQualityGate abortPipeline: false
                 }
             }
         }
@@ -36,14 +39,26 @@ pipeline {
                     withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'dockerhub_id  ', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
                         sh 'docker login -u $USERNAME -p $PASSWORD'
                         sh 'docker build -t microservicio-service .'
+                        sh 'docker push luisangelhm88/microservicio-hub:dev'
+                    }
+                }
+            }
+        }
+        stage('Container Push Nexus') {
+            steps {
+                dir('microservicio-service/'){
+                    withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'dockernexus_id', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
+                        sh 'docker login ${LOCAL_SERVER}:8083 -u $USERNAME -p $PASSWORD'
+                        sh 'docker tag microservicio-service:latest ${LOCAL_SERVER}:8083/repository/docker-private/microservicio_nexus:dev'
                     }
                 }
             }
         }
         stage('Container Run') {
             steps {
-                sh 'docker stop microservicio-one'
-                sh 'docker run -d --rm --name microservicio-one -p 8090:8090 microservicio-service'
+                sh 'docker stop microservicio-one || true'
+                //sh 'docker run -d --rm --name microservicio-one -p 8090:8090 microservicio-service'
+                sh 'docker run -d --rm --name microservicio-one -p 8090:8090 192.168.1.133:8083/repository/docker-private/microservicio_nexus:dev'
             }
         }
     }
