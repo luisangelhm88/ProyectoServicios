@@ -5,6 +5,7 @@ pipeline {
     }
     tools {
         maven 'M3_8_2'
+        nodejs 'NodeJs12'
     }
     stages {
         stage('Build and Analize') {
@@ -33,8 +34,21 @@ pipeline {
                 }
             }
         }
+        stage('Frontend') {
+            steps {
+                echo 'Building Frontend'
+                dir('frontend/'){
+                    sh 'npm install'
+                    sh 'npm run build'
+                    sh 'docker stop frontend-one || true'
+                    sh "docker build -t frontend-web ."
+                    sh 'docker run -d --rm --name frontend-one -p 8010:80 frontend-web'
+                }
+            }
+        }
+
         stage('Database') {
-        steps {
+            steps {
                 dir('liquibase/'){
                     sh '/opt/liquibase/liquibase --version'
                     sh '/opt/liquibase/liquibase --changeLogFile="changesets/db.changelog-master.xml" update'
