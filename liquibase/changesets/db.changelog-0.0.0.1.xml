@@ -20,4 +20,4 @@
             </column>
         </createTable>
     </changeSet>
-</databaseChangeLog>
+</databaseChangeLog> 

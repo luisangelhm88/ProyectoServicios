@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        LOCAL_SERVER = '192.168.96.1'
+        LOCAL_SERVER = '192.168.1.133'
     }
     tools {
         maven 'M3_8_2'
@@ -13,8 +13,7 @@ pipeline {
                 dir('microservicio-service/'){
                     echo 'Execute Maven and Analizing with SonarServer'
                     withSonarQubeEnv('SonarServer') {
-                        //sh "mvn clean package sonar:sonar \
-                        sh "mvn clean package dependency-check:check sonar:sonar \
+                        sh "mvn clean package  \
                             -Dsonar.projectKey=21_MyCompany_Microservice \
                             -Dsonar.projectName=21_MyCompany_Microservice \
                             -Dsonar.sources=src/main \
@@ -27,14 +26,14 @@ pipeline {
                 }
             }
         }
-        stage('Quality Gate'){
+        /*stage('Quality Gate'){
             steps {
                 timeout(time: 2, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: false
                 }
             }
-        }
-        stage('Frontend') {
+        }*/
+        /*stage('Frontend') {
             steps {
                 echo 'Building Frontend'
                 dir('frontend/'){
@@ -45,54 +44,78 @@ pipeline {
                     sh 'docker run -d --rm --name frontend-one -p 8010:80 frontend-web'
                 }
             }
-        }
-
+        }*/
         stage('Database') {
-            steps {
-                dir('liquibase/'){
-                    sh '/opt/liquibase/liquibase --version'
-                    sh '/opt/liquibase/liquibase --changeLogFile="changesets/db.changelog-master.xml" update'
-                    echo 'Applying Db changes'
-                }
-            }
-        }
+			steps {
+				dir('liquibase/'){
+					sh '/opt/liquibase/liquibase --version'
+					sh '/opt/liquibase/liquibase --changeLogFile="changesets/db.changelog-master.xml" update'
+					echo 'Applying Db changes'
+				}
+			}
+		}
         stage('Container Build') {
             steps {
                 dir('microservicio-service/'){
-                    withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'dockerhub_id  ', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
+                    withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'dockerhub_id', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
                         sh 'docker login -u $USERNAME -p $PASSWORD'
                         sh 'docker build -t microservicio-service .'
-                        sh 'docker push luisangelhm88/microservicio-hub:dev'
                     }
                 }
             }
         }
-        stage('Container Push Nexus') {
+        stage('Zuul') {
             steps {
-                dir('microservicio-service/'){
-                    withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'dockernexus_id', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
-                        sh 'docker login ${LOCAL_SERVER}:8083 -u $USERNAME -p $PASSWORD'
-                        sh 'docker tag microservicio-service:latest ${LOCAL_SERVER}:8083/repository/docker-private/microservicio_nexus:dev'
+                dir('ZuulBase/'){
+                    sh 'mvn clean package'
+                    withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'dockerhub_id', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
+                        sh 'docker login -u $USERNAME -p $PASSWORD'
+                        sh 'docker build -t zuul .'
+                        sh 'docker stop zuul-service || true'
+                        sh 'docker run -d --rm --name zuul-service -p 8000:8000 zuul'
                     }
                 }
             }
         }
+        stage('Eureka') {
+            steps {
+                dir('EurekaBase/'){
+                    sh 'mvn clean package'
+                    withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'dockerhub_id', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
+                        sh 'docker login -u $USERNAME -p $PASSWORD'
+                        sh 'docker build -t eureka .'
+                        sh 'docker stop eureka-service || true'
+                        sh 'docker run -d --rm --name eureka-service -p 8761:8761 eureka'
+                    }
+                }
+            }
+        }
+        
+        /*stage('Container Push Nexus') {
+            steps {
+                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'dockernexus_id', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
+                    sh 'docker login ${LOCAL_SERVER}:8083 -u $USERNAME -p $PASSWORD'
+                    sh 'docker tag microservicio-service:latest ${LOCAL_SERVER}:8083/repository/docker-private/microservicio_nexus:dev'
+                    sh 'docker push ${LOCAL_SERVER}:8083/repository/docker-private/microservicio_nexus:dev'
+                }
+            }
+        }*/
         stage('Container Run') {
             steps {
                 sh 'docker stop microservicio-one || true'
-                //sh 'docker run -d --rm --name microservicio-one -p 8090:8090 microservicio-service'
-                sh 'docker run -d --rm --name microservicio-one -e SPRING_PROFILES_ACTIVE=qa-p 8090:8090 192.168.1.133:8083/repository/docker-private/microservicio_nexus:dev'
+                sh 'docker run -d --rm --name microservicio-one -e SPRING_PROFILES_ACTIVE=qa -p 8090:8090 microservicio-service'
             }
         }
-        stage('Testing') {
+        /*stage('Testing') {
             steps {
-                dir('cypress/') {
-                    //sh 'docker run --rm --name Cypress -v /Users/javierrodriguez/Documents/Repositorios/CursoMicroservicios/jenkins_home/workspace/Pruebas/cypress:/e2e -w /e2e -e Cypress cypress/included:3.4.0'
-                    sh 'docker run --rm --name Cypress -v "C:\Users\Luis Ángel\OneDrive\Escritorio\CursoMicroservicios/jenkins_home/workspace/Pruebas/cypress:/e2e" -w /e2e -e Cypress cypress/included:3.4.0'
-                }
+				dir('cypress/') {
+                    sh 'docker build -t cypressfront .'
+                    sh 'docker run cypressfront'
+					//sh 'docker run --rm --name Cypress -v /Users/javierrodriguez/Documents/Repositorios/EcosistemaJenkins/jenkins_home/workspace/Microservicio/Cypress:/e2e -w /e2e -e Cypress cypress/included:3.4.0'
+				}
             }
-        }
-        stage('tar videos') 
+        }*
+        /*stage('tar videos') 
         {
             steps 
             {
@@ -102,6 +125,30 @@ pipeline {
                     allowEmptyArchive: true
                 }
             }
+        }*/
+        /*stage('Estress') {
+            steps {
+                dir('Gatling/'){
+                    sh 'mvn gatling:test'
+                }
+            }
+            post {
+                always {
+                    gatlingArchive()
+                }
+            }
+        }*/
+    }
+    post {
+        always {
+            //deleteDir()
+            echo 'Always'
+        }
+        success {
+            echo 'I succeeeded!'
+        }
+        failure {
+            echo 'I failed :('
         }
     }
 }
