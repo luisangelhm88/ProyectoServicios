@@ -18,17 +18,17 @@ pipeline {
             steps {
                 dir('microservicio-service/'){
                     echo 'Execute Maven and Analizing with SonarServer'
-                    withSonarQubeEnv('SonarServer') {
-                        sh "mvn clean package  \
-                            -Dsonar.projectKey=21_MyCompany_Microservice \
-                            -Dsonar.projectName=21_MyCompany_Microservice \
-                            -Dsonar.sources=src/main \
-                            -Dsonar.coverage.exclusions=**/*TO.java,**/*DO.java,**/curso/web/**/*,**/curso/persistence/**/*,**/curso/commons/**/*,**/curso/model/**/* \
-                            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-                            -Djacoco.output=tcpclient \
-                            -Djacoco.address=127.0.0.1 \
-                            -Djacoco.port=10001"
-                    }
+                    // withSonarQubeEnv('SonarServer') {
+                    sh "mvn clean package  \
+                        -Dsonar.projectKey=21_MyCompany_Microservice \
+                        -Dsonar.projectName=21_MyCompany_Microservice \
+                        -Dsonar.sources=src/main \
+                        -Dsonar.coverage.exclusions=**/*TO.java,**/*DO.java,**/curso/web/**/*,**/curso/persistence/**/*,**/curso/commons/**/*,**/curso/model/**/* \
+                        -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+                        -Djacoco.output=tcpclient \
+                        -Djacoco.address=127.0.0.1 \
+                        -Djacoco.port=10001"
+                    //}
                 }
             }
         }
