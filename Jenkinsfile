@@ -9,6 +9,12 @@ pipeline {
     }
     stages {
         stage('Build and Analize') {
+            when {
+                anyOf {
+                    changeset "*microservicio-service/**"
+                    expression { currentBuild.previousBuild.result != "SUCCESS"}
+                }
+            }
             steps {
                 dir('microservicio-service/'){
                     echo 'Execute Maven and Analizing with SonarServer'
@@ -27,6 +33,12 @@ pipeline {
             }
         }
         /*stage('Quality Gate'){
+            when {
+                anyOf {
+                    changeset "*microservicio-service/**"
+                    expression { currentBuild.previousBuild.result != "SUCCESS"}
+                }
+            }
             steps {
                 timeout(time: 2, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: false
@@ -34,6 +46,12 @@ pipeline {
             }
         }*/
         /*stage('Frontend') {
+            when {
+                anyOf {
+                    changeset "*frontend/**"
+                    expression { currentBuild.previousBuild.result != "SUCCESS"}
+                }
+            }
             steps {
                 echo 'Building Frontend'
                 dir('frontend/'){
@@ -46,6 +64,12 @@ pipeline {
             }
         }*/
         stage('Database') {
+            when {
+                anyOf {
+                    changeset "*liquibase/**"
+                    expression { currentBuild.previousBuild.result != "SUCCESS"}
+                }
+            }
 			steps {
 				dir('liquibase/'){
 					sh '/opt/liquibase/liquibase --version'
@@ -55,6 +79,12 @@ pipeline {
 			}
 		}
         stage('Container Build') {
+            when {
+                anyOf {
+                    changeset "*microservicio-service/**"
+                    expression { currentBuild.previousBuild.result != "SUCCESS"}
+                }
+            }
             steps {
                 dir('microservicio-service/'){
                     withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'dockerhub_id', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
@@ -65,6 +95,12 @@ pipeline {
             }
         }
         stage('Zuul') {
+            when {
+                anyOf {
+                    changeset "*ZuulBase/**"
+                    expression { currentBuild.previousBuild.result != "SUCCESS"}
+                }
+            }
             steps {
                 dir('ZuulBase/'){
                     sh 'mvn clean package'
@@ -78,6 +114,12 @@ pipeline {
             }
         }
         stage('Eureka') {
+            when {
+                anyOf {
+                    changeset "*EurekaBase/**"
+                    expression { currentBuild.previousBuild.result != "SUCCESS"}
+                }
+            }
             steps {
                 dir('EurekaBase/'){
                     sh 'mvn clean package'
@@ -92,6 +134,12 @@ pipeline {
         }
         
         /*stage('Container Push Nexus') {
+            when {
+                anyOf {
+                    changeset "*microservicio-service/**"
+                    expression { currentBuild.previousBuild.result != "SUCCESS"}
+                }
+            }
             steps {
                 withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'dockernexus_id', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
                     sh 'docker login ${LOCAL_SERVER}:8083 -u $USERNAME -p $PASSWORD'
@@ -103,13 +151,19 @@ pipeline {
         stage('Container Run') {
             steps {
                 sh 'docker stop microservicio-one || true'
-                sh 'docker run -d --rm --name microservicio-one -e SPRING_PROFILES_ACTIVE=qa -p 8090:8090 microservicio-service'
+                sh 'docker run -d --rm --name microservicio-one -e SPRING_PROFILES_ACTIVE=qa microservicio-service'
 
                 sh 'docker stop microservicio-one-two || true'
-                sh 'docker run -d --rm --name microservicio-one-two -e SPRING_PROFILES_ACTIVE=qa -p 8091:8090 microservicio-service'
+                sh 'docker run -d --rm --name microservicio-one-two -e SPRING_PROFILES_ACTIVE=qa microservicio-service'
             }
         }
         /*stage('Testing') {
+            when {
+                anyOf {
+                    changeset "*cypress/**"
+                    expression { currentBuild.previousBuild.result != "SUCCESS"}
+                }
+            }
             steps {
 				dir('cypress/') {
                     sh 'docker build -t cypressfront .'
@@ -120,6 +174,12 @@ pipeline {
         }*
         /*stage('tar videos') 
         {
+            when {
+                anyOf {
+                    changeset "*cypress/cypress/videos/**"
+                    expression { currentBuild.previousBuild.result != "SUCCESS"}
+                }
+            }
             steps 
             {
                 dir('cypress/cypress/videos/') {
@@ -130,6 +190,12 @@ pipeline {
             }
         }*/
         /*stage('Estress') {
+            when {
+                anyOf {
+                    changeset "*Gatling/**"
+                    expression { currentBuild.previousBuild.result != "SUCCESS"}
+                }
+            }
             steps {
                 dir('Gatling/'){
                     sh 'mvn gatling:test'
