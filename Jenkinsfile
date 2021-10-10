@@ -19,7 +19,7 @@ pipeline {
                 dir('microservicio-service/'){
                     echo 'Execute Maven and Analizing with SonarServer'
                     // withSonarQubeEnv('SonarServer') {
-                    sh "mvn clean package  \
+                    sh "mvn clean package -DskipTests \
                         -Dsonar.projectKey=21_MyCompany_Microservice \
                         -Dsonar.projectName=21_MyCompany_Microservice \
                         -Dsonar.sources=src/main \
@@ -192,18 +192,12 @@ pipeline {
             steps {
                 sh 'docker stop microservicio-one || true'
                 sh 'docker run -d --rm --name microservicio-one -e SPRING_PROFILES_ACTIVE=qa microservicio-service'
-
-                sh 'docker stop microservicio-one-two || true'
-                sh 'docker run -d --rm --name microservicio-one-two -e SPRING_PROFILES_ACTIVE=qa microservicio-service'
             }
         }
         stage('Container Run two') {
             steps {
                 sh 'docker stop microservicio-two || true'
                 sh 'docker run -d --rm --name microservicio-two -e SPRING_PROFILES_ACTIVE=qa microservicio-service-two'
-
-                sh 'docker stop microservicio-two-two || true'
-                sh 'docker run -d --rm --name microservicio-two-two -e SPRING_PROFILES_ACTIVE=qa microservicio-service-two'
             }
         }
         /*stage('Testing') {
